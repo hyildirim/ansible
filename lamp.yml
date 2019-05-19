@@ -1,0 +1,125 @@
+---
+- hosts: all
+  vars:
+    epelReleaseMajorVersion: 7
+    epelReleaseMinorVersion: 8
+    installer: /tmp/installer.php
+    mysql_log_error: /var/log/mysqld.log
+    mysql_cli_version : 
+    mysql_root_password_updated: 0
+
+  remote_user: root
+  gather_facts: no
+  #roles: 
+  #  - epel-repository
+  tasks:
+  - name: Enable REPEL
+    yum:
+      name: epel-release
+  - name: Add EPEL repository
+    yum_repository:
+      name: epel
+      description: EPEL YUM repo
+      baseurl: http://dl.fedoraproject.org/pub/epel/{{epelReleaseMajorVersion}}/x86_64/
+      enabled: yes
+      gpgcheck: 1
+      gpgkey: http://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
+    tags:
+      - repo
+  - name: Add REMI repository
+    yum_repository:
+      name: remi
+      description: Remi's REPO
+      mirrorlist: http://cdn.remirepo.net/enterprise/7/remi/mirror
+      enabled: yes
+      gpgcheck: 1
+      gpgkey: http://rpms.remirepo.net/RPM-GPG-KEY-remi
+    tags:
+      - repo
+
+  - name: Add MySQL Community repository
+    yum_repository:
+      name: mysql-community
+      description: MySQL 5.7 Community Repo
+      baseurl: http://repo.mysql.com/yum/mysql-5.7-community/el/7/$basearch/
+      enabled: yes
+      gpgcheck: 1
+      gpgkey: https://repo.mysql.com/RPM-GPG-KEY-mysql
+    tags:
+      - mrepo
+
+
+  - name: Add REMI repository
+    yum_repository:
+      name: remi-php73
+      description: Remi's PHP 7.3 RPM repository for Enterprise Linux $releasever - $basearch
+      mirrorlist: http://rpms.remirepo.net/enterprise/$releasever/php73/mirror
+      enabled: yes
+      gpgcheck: 1
+      gpgkey: http://rpms.remirepo.net/RPM-GPG-KEY-remi
+    tags:
+      - repo
+  - name: Add REMI-SAFE repository
+    yum_repository:
+      name: remi-safe
+      description: Remi's Safe repository for Enterprise Linux $releasever - $basearch
+      baseurl: http://rpms.remirepo.net/enterprise/7/debug-remi/$basearch/
+      enabled: yes
+      gpgcheck: 1
+      gpgkey: http://rpms.remirepo.net/RPM-GPG-KEY-remi
+    tags:
+      - repo
+      
+  - name: Install basic packages
+    yum:
+      name: git, tcpdump, net-tools, nc, curl, wget, nmap, unzip, gd, mlocate
+      state: latest
+    tags:
+      - packages
+
+  - name: Install PHP
+    yum:
+      name: php,php-gd,php-mcrypt,php-cli,php-curl,php-mysql,php-ldap,php-zip,php-fileinfo 
+      state: latest
+    tags:
+      - php
+
+  - name: Download composer
+    get_url:
+      url: https://getcomposer.org/installer
+      dest: "{{ installer }}"
+    tags:
+        - composer
+
+  - name: Install composer
+    command: "{{ item }}"
+    with_items:
+      - "php {{ installer }}"
+      - mv composer.phar /usr/local/bin/composer
+    tags:
+      - composer
+
+  - name: Remove composer installer
+    file:
+      path: "{{ installer }}"
+      state: absent
+    tags:
+      - composer
+      
+ 
+
+ 
+  - name: Install MySQL Server
+    yum: name=mysql-community-server state=present
+    tags:
+      - mysql      
+      
+  - name: Start MySQL Server and enable it
+    service: name=mysqld state=started enabled=yes
+    tags:
+      - mysql
+  - name: Install MySQL-PYTHON to do some magic stuff like securing the database
+    yum: name=MySQL-python state=present
+    tags:
+      - mysql    
+ 
